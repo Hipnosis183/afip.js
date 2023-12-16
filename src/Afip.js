@@ -4,7 +4,6 @@ const soap = require('soap');
 const axios = require('axios');
 const forge = require('node-forge');
 const xml2js = require('xml2js');
-const Mixpanel = require('mixpanel');
 
 // XML parser
 var xmlParser = new xml2js.Parser({
@@ -92,16 +91,7 @@ function Afip(options = {}){
 	// Create an Afip instance if it is not
 	if (!(this instanceof Afip)) {return new Afip(options)}
 
-	// Create an instance of the mixpanel client
-	/** @private */
-	this.mixpanel = Mixpanel.init('e87ee11c8cc288e5c5dc213c4d957c7e');
-	/** @private */
-	this.mixpanelRegister = {};
-
-	this.mixpanelRegister['afip_sdk_library'] = 'javascript';
-
 	if (!options.hasOwnProperty('CUIT')) {throw new Error("CUIT field is required in options array");}
-	
 
 	// Define default options
 	if (!options.hasOwnProperty('production')) {options['production'] = false;}
@@ -110,13 +100,6 @@ function Afip(options = {}){
 	if (!options.hasOwnProperty('res_folder')) {options['res_folder'] = __dirname+'/Afip_res/';}
 	if (!options.hasOwnProperty('ta_folder')) {options['ta_folder'] = __dirname+'/Afip_res/';}
 	if (options['production'] !== true) {options['production'] = false;}
-
-	this.mixpanelRegister['distinct_id'] = options['CUIT'];
-	this.mixpanelRegister['production'] = options['production'];
-
-	try {
-		this.mixpanel.track('initialized', Object.assign({}, this.mixpanelRegister, options));
-	} catch (e) {}
 
 	this.options = options;
 
@@ -294,59 +277,6 @@ Afip.prototype.CreateServiceTA = async function(service) {
 			resolve();
 		});
 	}));
-}
-
-
-/**
- * Track SDK usage
- * 
- * @param string web_service ID of the web service used
- * @param string operation SOAP operation called 
- * @param array params Parameters for the ws
- * @private
- **/
-Afip.prototype.TrackUsage = async function(web_service, operation, params = {}) {
-	options = {};
-
-	if (web_service === 'wsfe' && operation === 'FECAESolicitar') {
-		if (params['FeCAEReq'] && params['FeCAEReq']['FeCabReq'] && params['FeCAEReq']['FeCabReq']['CbteTipo']) {
-			options['CbteTipo'] = params['FeCAEReq']['FeCabReq']['CbteTipo'];
-		}
-
-		if (params['FeCAEReq'] && params['FeCAEReq']['FeDetReq'] && params['FeCAEReq']['FeDetReq']['FECAEDetRequest'] && params['FeCAEReq']['FeDetReq']['FECAEDetRequest']['ImpTotal']) {
-			options['ImpTotal'] = params['FeCAEReq']['FeDetReq']['FECAEDetRequest']['ImpTotal'];
-		}
-	}
-
-	try {
-		this.mixpanel.track(web_service+'.'+operation, Object.assign({}, this.mixpanelRegister, options));
-	} catch (e) {}
-
-	if (!this.AdminClientInitialized && this.options['production'] === true) {
-		try {
-			await this.AdminClient.post('v1/sdk-events', {
-				"name": "initialized",
-				"properties": {
-					"environment": this.options['production'] === true ? "prod" : "dev",
-					"tax_id": `${this.options['CUIT']}`,
-					"afip_sdk_library": "javascript"
-				}
-			});
-
-			/** @private */
-			this.AdminClientInitialized = true;
-		} catch (error) {
-			if (!error.response) {
-				throw error;
-			}
-			else if (error.response.data && error.response.data.message) {
-				throw Object.assign(new Error(error.response.data.message), error.response.data);
-			}
-			else {
-				throw Object.assign(new Error(error.response.statusText), error.response);
-			}
-		}
-	}
 }
 
 /**

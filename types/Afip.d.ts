@@ -2,10 +2,6 @@ export = Afip;
 declare function Afip(options?: {}): Afip;
 declare class Afip {
     constructor(options?: {});
-    /** @private */
-    private mixpanel;
-    /** @private */
-    private mixpanelRegister;
     options: {};
     CUIT: any;
     RES_FOLDER: any;
@@ -30,7 +26,6 @@ declare class Afip {
      * @param service Service for token authorization
      **/
     CreateServiceTA(service: any): Promise<void>;
-    private TrackUsage;
     /** @private */
     private AdminClient;
     /**
